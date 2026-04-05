@@ -5,8 +5,8 @@
 # LICENSE file in the root directory of this source tree.
 """Support Ops Environment."""
 
-from .client import SupportOpsEnv
-from .models import SupportOpsAction, SupportOpsObservation, SupportOpsState
+from client import SupportOpsEnv
+from models import SupportOpsAction, SupportOpsObservation, SupportOpsState
 
 __all__ = [
     "SupportOpsAction",

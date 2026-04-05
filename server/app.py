@@ -4,14 +4,10 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 """FastAPI application for the Support Ops Environment."""
-try:
-    from openenv.core.env_server.http_server import create_app
-    from support_ops_env.models import SupportOpsAction, SupportOpsObservation
-    from .support_ops_environment import SupportOpsEnvironment
-except ImportError:
-    from openenv.core.env_server.http_server import create_app
-    from support_ops_env.models import SupportOpsAction, SupportOpsObservation
-    from server.support_ops_environment import SupportOpsEnvironment
+from openenv.core.env_server.http_server import create_app
+
+from models import SupportOpsAction, SupportOpsObservation
+from server.support_ops_environment import SupportOpsEnvironment
 
 
 app = create_app(

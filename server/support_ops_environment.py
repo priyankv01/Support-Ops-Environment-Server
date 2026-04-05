@@ -12,12 +12,9 @@ from uuid import uuid4
 
 import random
 
-try:
-    from openenv.core.env_server.interfaces import Environment
-except ImportError:
-    from openenv.core.env_server.interfaces import Environment
+from openenv.core.env_server.interfaces import Environment
 
-from support_ops_env.models import (
+from models import (
     InventoryItem,
     Order,
     SupportOpsAction,

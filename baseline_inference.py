@@ -6,7 +6,8 @@ from typing import Any, Dict
 
 from openai import OpenAI
 
-from support_ops_env import SupportOpsAction, SupportOpsEnv
+from client import SupportOpsEnv
+from models import SupportOpsAction
 
 
 MODEL = os.getenv("OPENAI_MODEL", "gpt-5.2")

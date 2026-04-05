@@ -9,7 +9,7 @@ from __future__ import annotations
 from openenv.core.client_types import StepResult
 from openenv.core.env_client import EnvClient
 
-from support_ops_env.models import SupportOpsAction, SupportOpsObservation, SupportOpsState
+from models import SupportOpsAction, SupportOpsObservation, SupportOpsState
 
 
 class SupportOpsEnv(EnvClient[SupportOpsAction, SupportOpsObservation, SupportOpsState]):
