@@ -20,3 +20,6 @@ baseline = ["openai>=1.0.0"]
 
 [tool.setuptools.packages.find]
 where = ["."]
+
+[project.scripts]
+server = "server.app:main"
