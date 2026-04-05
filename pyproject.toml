@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "support-ops-env"
+version = "0.1.0"
+description = "OpenEnv environment for retail support operations (Meta Hackathon 2026)"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "openenv-core>=0.2.0",
+  "pydantic>=2.6",
+  "fastapi>=0.110",
+  "uvicorn>=0.27",
+]
+
+[project.optional-dependencies]
+baseline = ["openai>=1.0.0"]
+
+[tool.setuptools.packages.find]
+where = ["."]
