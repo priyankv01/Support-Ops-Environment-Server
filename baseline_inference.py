@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Callable, Tuple
 
 try:
     from openai import OpenAI
@@ -15,9 +15,10 @@ from client import SupportOpsEnv
 from models import SupportOpsAction, SupportOpsObservation
 
 
-MODEL = os.getenv("OPENAI_MODEL", "gpt-5.2")
-BASE_URL = os.getenv("SUPPORT_OPS_BASE_URL", "http://localhost:8000")
-HAS_OPENAI_KEY = bool(os.getenv("OPENAI_API_KEY")) and OpenAI is not None
+MODEL = os.getenv("MODEL_NAME", os.getenv("OPENAI_MODEL", "gpt-5.2"))
+BASE_URL = os.getenv("API_BASE_URL", os.getenv("SUPPORT_OPS_BASE_URL", "http://localhost:7860"))
+API_KEY = os.getenv("HF_TOKEN") or os.getenv("OPENAI_API_KEY")
+HAS_OPENAI_KEY = bool(API_KEY) and OpenAI is not None
 
 
 SYSTEM_PROMPT = (
@@ -127,13 +128,20 @@ def _rule_action(observation: SupportOpsObservation) -> SupportOpsAction:
     return SupportOpsAction(action_type="view_ticket")
 
 
-def run_task(task_id: str) -> float:
-    client = OpenAI() if HAS_OPENAI_KEY else None
+def run_task(
+    task_id: str,
+    logger: Optional[Callable[[str, Dict[str, Any]], None]] = None,
+) -> float:
+    client = OpenAI(api_key=API_KEY, base_url=BASE_URL) if HAS_OPENAI_KEY else None
     with SupportOpsEnv(base_url=BASE_URL) as env:
         result = env.reset(task_id=task_id, seed=42)
         total_reward = 0.0
         done = result.done
         observation = result.observation
+        step_count = 0
+
+        if logger:
+            logger("START", {"task_id": task_id, "base_url": BASE_URL, "model": MODEL})
 
         while not done:
             action: Optional[SupportOpsAction] = None
@@ -157,6 +165,23 @@ def run_task(task_id: str) -> float:
             observation = step_result.observation
             total_reward += step_result.reward
             done = step_result.done
+            step_count += 1
+
+            if logger:
+                logger(
+                    "STEP",
+                    {
+                        "task_id": task_id,
+                        "step": step_count,
+                        "action": action.model_dump(),
+                        "reward": step_result.reward,
+                        "progress": observation.progress,
+                        "done": done,
+                    },
+                )
+
+        if logger:
+            logger("END", {"task_id": task_id, "total_reward": round(total_reward, 3)})
 
         return round(total_reward, 3)
 
