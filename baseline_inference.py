@@ -131,7 +131,7 @@ def _rule_action(observation: SupportOpsObservation) -> SupportOpsAction:
 def run_task(
     task_id: str,
     logger: Optional[Callable[[str, Dict[str, Any]], None]] = None,
-) -> float:
+) -> Tuple[float, int]:
     client = OpenAI(api_key=API_KEY, base_url=BASE_URL) if HAS_OPENAI_KEY else None
     with SupportOpsEnv(base_url=BASE_URL) as env:
         result = env.reset(task_id=task_id, seed=42)
@@ -141,7 +141,7 @@ def run_task(
         step_count = 0
 
         if logger:
-            logger("START", {"task_id": task_id, "base_url": BASE_URL, "model": MODEL})
+            logger("START", {"task": task_id, "base_url": BASE_URL, "model": MODEL})
 
         while not done:
             action: Optional[SupportOpsAction] = None
@@ -171,26 +171,27 @@ def run_task(
                 logger(
                     "STEP",
                     {
-                        "task_id": task_id,
+                        "task": task_id,
                         "step": step_count,
-                        "action": action.model_dump(),
-                        "reward": step_result.reward,
-                        "progress": observation.progress,
+                        "reward": round(step_result.reward, 3),
+                        "progress": round(observation.progress, 3),
                         "done": done,
                     },
                 )
 
+        total = round(total_reward, 3)
         if logger:
-            logger("END", {"task_id": task_id, "total_reward": round(total_reward, 3)})
+            logger("END", {"task": task_id, "score": total, "steps": step_count})
 
-        return round(total_reward, 3)
+        return total, step_count
 
 
 def main() -> None:
     tasks = ["triage_packaging", "late_delivery_refund", "defective_replacement_pickup"]
     scores = {}
     for task_id in tasks:
-        scores[task_id] = run_task(task_id)
+        score, _ = run_task(task_id)
+        scores[task_id] = score
     print(json.dumps(scores, indent=2))
 
 
