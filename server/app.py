@@ -18,6 +18,15 @@ app = create_app(
 )
 
 
+@app.get("/")
+def root() -> dict:
+    return {
+        "status": "ok",
+        "message": "Support Ops OpenEnv server is running.",
+        "docs": "/docs",
+    }
+
+
 def main() -> None:
     import uvicorn
 
