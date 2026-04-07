@@ -1,4 +1,3 @@
-import json
 import os
 from typing import Any, Dict
 
@@ -20,19 +19,25 @@ def _format_kv(payload: Dict[str, Any]) -> str:
     return " ".join(parts)
 
 
-def _logger(event: str, payload: Dict[str, Any]) -> None:
+def _emit(event: str, payload: Dict[str, Any]) -> None:
     print(f"[{event}] {_format_kv(payload)}", flush=True)
+
+
+def _step_logger(event: str, payload: Dict[str, Any]) -> None:
+    if event != "STEP":
+        return
+    _emit("STEP", payload)
 
 
 def main() -> None:
     tasks = ["triage_packaging", "late_delivery_refund", "defective_replacement_pickup"]
-    scores: Dict[str, float] = {}
     for task_id in tasks:
+        _emit("START", {"task": task_id})
         try:
-            score, _steps = run_task(task_id, logger=_logger)
-            scores[task_id] = score
+            score, steps = run_task(task_id, logger=_step_logger)
+            _emit("END", {"task": task_id, "score": score, "steps": steps})
         except Exception as exc:
-            _logger("END", {"task": task_id, "score": 0.0, "steps": 0, "error": str(exc)})
+            _emit("END", {"task": task_id, "score": 0.0, "steps": 0, "error": str(exc)})
 
 
 if __name__ == "__main__":
