@@ -12,7 +12,7 @@ LOCAL_IMAGE_NAME = os.getenv("LOCAL_IMAGE_NAME")
 
 
 def _logger(event: str, payload: Dict[str, Any]) -> None:
-    print(f"{event} {json.dumps(payload, ensure_ascii=False)}")
+    print(f"[{event}] {json.dumps(payload, ensure_ascii=False)}", flush=True)
 
 
 def main() -> None:
@@ -20,11 +20,11 @@ def main() -> None:
     scores: Dict[str, float] = {}
     for task_id in tasks:
         scores[task_id] = run_task(task_id, logger=_logger)
-    print(f"END {json.dumps({'scores': scores}, ensure_ascii=False)}")
+    print(f"[END] {json.dumps({'scores': scores}, ensure_ascii=False)}", flush=True)
 
 
 if __name__ == "__main__":
     try:
         main()
     except Exception as exc:
-        print(f"END {json.dumps({'error': str(exc)})}")
+        print(f"[END] {json.dumps({'error': str(exc)})}", flush=True)
