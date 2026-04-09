@@ -18,10 +18,10 @@ from models import SupportOpsAction, SupportOpsObservation
 MODEL = os.getenv("MODEL_NAME", os.getenv("OPENAI_MODEL", "gpt-5.2"))
 # LLM proxy (required by validator)
 LLM_BASE_URL = os.getenv("API_BASE_URL")
-API_KEY = os.getenv("API_KEY") or os.getenv("OPENAI_API_KEY")
+API_KEY = os.getenv("API_KEY")
 # Environment server (local container)
 ENV_BASE_URL = os.getenv("SUPPORT_OPS_BASE_URL", "http://localhost:7860")
-HAS_OPENAI_KEY = bool(API_KEY) and OpenAI is not None
+HAS_OPENAI_KEY = bool(API_KEY) and bool(LLM_BASE_URL) and OpenAI is not None
 
 
 SYSTEM_PROMPT = (
@@ -147,11 +147,11 @@ def run_task(
             logger("START", {"task": task_id, "base_url": ENV_BASE_URL, "model": MODEL})
 
         # Ensure at least one request hits the provided LiteLLM proxy when API_KEY is present.
-        if client is not None and LLM_BASE_URL:
+        if client is not None:
             try:
-                _ = client.responses.create(
+                _ = client.chat.completions.create(
                     model=MODEL,
-                    input=[{"role": "user", "content": "ping"}],
+                    messages=[{"role": "user", "content": "ping"}],
                     temperature=0,
                 )
             except Exception:
@@ -163,15 +163,15 @@ def run_task(
             if client is not None:
                 try:
                     prompt = build_prompt(observation.model_dump())
-                    response = client.responses.create(
+                    response = client.chat.completions.create(
                         model=MODEL,
-                        input=[
+                        messages=[
                             {"role": "system", "content": SYSTEM_PROMPT},
                             {"role": "user", "content": prompt},
                         ],
                         temperature=0,
                     )
-                    action = parse_action(response.output_text)
+                    action = parse_action(response.choices[0].message.content)
                 except (OpenAIError, json.JSONDecodeError, ValueError, KeyError):
                     action = None
             if action is None:
