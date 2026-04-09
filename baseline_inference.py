@@ -16,8 +16,11 @@ from models import SupportOpsAction, SupportOpsObservation
 
 
 MODEL = os.getenv("MODEL_NAME", os.getenv("OPENAI_MODEL", "gpt-5.2"))
-BASE_URL = os.getenv("API_BASE_URL", os.getenv("SUPPORT_OPS_BASE_URL", "http://localhost:7860"))
+# LLM proxy (required by validator)
+LLM_BASE_URL = os.getenv("API_BASE_URL")
 API_KEY = os.getenv("API_KEY") or os.getenv("OPENAI_API_KEY")
+# Environment server (local container)
+ENV_BASE_URL = os.getenv("SUPPORT_OPS_BASE_URL", "http://localhost:7860")
 HAS_OPENAI_KEY = bool(API_KEY) and OpenAI is not None
 
 
@@ -132,8 +135,8 @@ def run_task(
     task_id: str,
     logger: Optional[Callable[[str, Dict[str, Any]], None]] = None,
 ) -> Tuple[float, int]:
-    client = OpenAI(api_key=API_KEY, base_url=BASE_URL) if HAS_OPENAI_KEY else None
-    with SupportOpsEnv(base_url=BASE_URL) as env:
+    client = OpenAI(api_key=API_KEY, base_url=LLM_BASE_URL) if HAS_OPENAI_KEY else None
+    with SupportOpsEnv(base_url=ENV_BASE_URL) as env:
         result = env.reset(task_id=task_id, seed=42)
         total_reward = 0.0
         done = result.done
@@ -141,10 +144,10 @@ def run_task(
         step_count = 0
 
         if logger:
-            logger("START", {"task": task_id, "base_url": BASE_URL, "model": MODEL})
+            logger("START", {"task": task_id, "base_url": ENV_BASE_URL, "model": MODEL})
 
         # Ensure at least one request hits the provided LiteLLM proxy when API_KEY is present.
-        if client is not None:
+        if client is not None and LLM_BASE_URL:
             try:
                 _ = client.responses.create(
                     model=MODEL,
