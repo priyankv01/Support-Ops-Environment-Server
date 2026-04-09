@@ -17,7 +17,7 @@ from models import SupportOpsAction, SupportOpsObservation
 
 MODEL = os.getenv("MODEL_NAME", os.getenv("OPENAI_MODEL", "gpt-5.2"))
 BASE_URL = os.getenv("API_BASE_URL", os.getenv("SUPPORT_OPS_BASE_URL", "http://localhost:7860"))
-API_KEY = os.getenv("HF_TOKEN") or os.getenv("OPENAI_API_KEY")
+API_KEY = os.getenv("API_KEY") or os.getenv("OPENAI_API_KEY")
 HAS_OPENAI_KEY = bool(API_KEY) and OpenAI is not None
 
 
@@ -142,6 +142,18 @@ def run_task(
 
         if logger:
             logger("START", {"task": task_id, "base_url": BASE_URL, "model": MODEL})
+
+        # Ensure at least one request hits the provided LiteLLM proxy when API_KEY is present.
+        if client is not None:
+            try:
+                _ = client.responses.create(
+                    model=MODEL,
+                    input=[{"role": "user", "content": "ping"}],
+                    temperature=0,
+                )
+            except Exception:
+                # Swallow errors; fallback policy will still complete the task.
+                pass
 
         while not done:
             action: Optional[SupportOpsAction] = None
