@@ -16,12 +16,8 @@ from models import SupportOpsAction, SupportOpsObservation
 
 
 MODEL = os.getenv("MODEL_NAME", os.getenv("OPENAI_MODEL", "gpt-5.2"))
-# LLM proxy (required by validator)
-LLM_BASE_URL = os.getenv("API_BASE_URL")
-API_KEY = os.getenv("API_KEY")
 # Environment server (local container)
 ENV_BASE_URL = os.getenv("SUPPORT_OPS_BASE_URL", "http://localhost:7860")
-HAS_OPENAI_KEY = bool(API_KEY) and bool(LLM_BASE_URL) and OpenAI is not None
 
 
 SYSTEM_PROMPT = (
@@ -135,7 +131,10 @@ def run_task(
     task_id: str,
     logger: Optional[Callable[[str, Dict[str, Any]], None]] = None,
 ) -> Tuple[float, int]:
-    client = OpenAI(api_key=API_KEY, base_url=LLM_BASE_URL) if HAS_OPENAI_KEY else None
+    # Always read proxy settings at runtime to avoid stale envs.
+    llm_base_url = os.environ["API_BASE_URL"]
+    api_key = os.environ["API_KEY"]
+    client = OpenAI(api_key=api_key, base_url=llm_base_url)
     with SupportOpsEnv(base_url=ENV_BASE_URL) as env:
         result = env.reset(task_id=task_id, seed=42)
         total_reward = 0.0
@@ -146,34 +145,32 @@ def run_task(
         if logger:
             logger("START", {"task": task_id, "base_url": ENV_BASE_URL, "model": MODEL})
 
-        # Ensure at least one request hits the provided LiteLLM proxy when API_KEY is present.
-        if client is not None:
-            try:
-                _ = client.chat.completions.create(
-                    model=MODEL,
-                    messages=[{"role": "user", "content": "ping"}],
-                    temperature=0,
-                )
-            except Exception:
-                # Swallow errors; fallback policy will still complete the task.
-                pass
+        # Ensure at least one request hits the provided LiteLLM proxy.
+        try:
+            _ = client.chat.completions.create(
+                model=MODEL,
+                messages=[{"role": "user", "content": "ping"}],
+                temperature=0,
+            )
+        except Exception:
+            # Swallow errors; fallback policy will still complete the task.
+            pass
 
         while not done:
             action: Optional[SupportOpsAction] = None
-            if client is not None:
-                try:
-                    prompt = build_prompt(observation.model_dump())
-                    response = client.chat.completions.create(
-                        model=MODEL,
-                        messages=[
-                            {"role": "system", "content": SYSTEM_PROMPT},
-                            {"role": "user", "content": prompt},
-                        ],
-                        temperature=0,
-                    )
-                    action = parse_action(response.choices[0].message.content)
-                except (OpenAIError, json.JSONDecodeError, ValueError, KeyError):
-                    action = None
+            try:
+                prompt = build_prompt(observation.model_dump())
+                response = client.chat.completions.create(
+                    model=MODEL,
+                    messages=[
+                        {"role": "system", "content": SYSTEM_PROMPT},
+                        {"role": "user", "content": prompt},
+                    ],
+                    temperature=0,
+                )
+                action = parse_action(response.choices[0].message.content)
+            except (OpenAIError, json.JSONDecodeError, ValueError, KeyError, Exception):
+                action = None
             if action is None:
                 action = _rule_action(observation)
             step_result = env.step(action)
