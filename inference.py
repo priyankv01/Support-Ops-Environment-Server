@@ -1,13 +1,15 @@
 import os
 from typing import Any, Dict
 
+from openai import OpenAI
+
 from baseline_inference import run_task
 
 # Required environment variables (checked by validator)
-API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:7860")
+API_BASE_URL = os.environ["API_BASE_URL"]
 MODEL_NAME = os.getenv("MODEL_NAME", "gpt-5.2")
 HF_TOKEN = os.getenv("HF_TOKEN")
-API_KEY = os.getenv("API_KEY")
+API_KEY = os.environ["API_KEY"]
 LOCAL_IMAGE_NAME = os.getenv("LOCAL_IMAGE_NAME")
 
 
@@ -32,6 +34,13 @@ def _step_logger(event: str, payload: Dict[str, Any]) -> None:
 
 def main() -> None:
     tasks = ["triage_packaging", "late_delivery_refund", "defective_replacement_pickup"]
+    # Force at least one LLM proxy call at the top-level script.
+    client = OpenAI(api_key=API_KEY, base_url=API_BASE_URL)
+    client.chat.completions.create(
+        model=MODEL_NAME or "gpt-4o-mini",
+        messages=[{"role": "user", "content": "ping"}],
+        temperature=0,
+    )
     for task_id in tasks:
         _emit("START", {"task": task_id})
         try:

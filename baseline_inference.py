@@ -131,14 +131,10 @@ def run_task(
     task_id: str,
     logger: Optional[Callable[[str, Dict[str, Any]], None]] = None,
 ) -> Tuple[float, int]:
-    # Always read proxy settings at runtime to avoid stale envs.
-    llm_base_url = os.getenv("API_BASE_URL", "")
-    api_key = os.getenv("API_KEY") or os.getenv("HF_TOKEN")
-    if not api_key or not llm_base_url or OpenAI is None:
-        # Fallback policy without proxy calls (for local/dev). Validator should provide HF_TOKEN.
-        client = None
-    else:
-        client = OpenAI(api_key=api_key, base_url=llm_base_url)
+    # Always read proxy settings at runtime (validator provides these).
+    llm_base_url = os.environ["API_BASE_URL"]
+    api_key = os.environ["API_KEY"]
+    client = OpenAI(api_key=api_key, base_url=llm_base_url)
     with SupportOpsEnv(base_url=ENV_BASE_URL) as env:
         result = env.reset(task_id=task_id, seed=42)
         total_reward = 0.0
@@ -150,41 +146,28 @@ def run_task(
             logger("START", {"task": task_id, "base_url": ENV_BASE_URL, "model": MODEL})
 
         # Ensure at least one request hits the provided LiteLLM proxy.
-        if client is not None:
-            # Ensure the proxy sees at least one request on the injected key.
-            try:
-                _ = client.chat.completions.create(
-                    model=MODEL or "gpt-4o-mini",
-                    messages=[{"role": "user", "content": "ping"}],
-                    temperature=0,
-                )
-            except Exception:
-                try:
-                    _ = client.chat.completions.create(
-                        model="gpt-4o-mini",
-                        messages=[{"role": "user", "content": "ping"}],
-                        temperature=0,
-                    )
-                except Exception:
-                    # Swallow errors; fallback policy will still complete the task.
-                    pass
+        # Ensure the proxy sees at least one request on the injected key.
+        _ = client.chat.completions.create(
+            model=MODEL or "gpt-4o-mini",
+            messages=[{"role": "user", "content": "ping"}],
+            temperature=0,
+        )
 
         while not done:
             action: Optional[SupportOpsAction] = None
-            if client is not None:
-                try:
-                    prompt = build_prompt(observation.model_dump())
-                    response = client.chat.completions.create(
-                        model=MODEL or "gpt-4o-mini",
-                        messages=[
-                            {"role": "system", "content": SYSTEM_PROMPT},
-                            {"role": "user", "content": prompt},
-                        ],
-                        temperature=0,
-                    )
-                    action = parse_action(response.choices[0].message.content)
-                except (OpenAIError, json.JSONDecodeError, ValueError, KeyError, Exception):
-                    action = None
+            try:
+                prompt = build_prompt(observation.model_dump())
+                response = client.chat.completions.create(
+                    model=MODEL or "gpt-4o-mini",
+                    messages=[
+                        {"role": "system", "content": SYSTEM_PROMPT},
+                        {"role": "user", "content": prompt},
+                    ],
+                    temperature=0,
+                )
+                action = parse_action(response.choices[0].message.content)
+            except (OpenAIError, json.JSONDecodeError, ValueError, KeyError, Exception):
+                action = None
             if action is None:
                 action = _rule_action(observation)
             step_result = env.step(action)
