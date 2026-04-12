@@ -7,6 +7,7 @@ from baseline_inference import run_task
 API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:7860")
 MODEL_NAME = os.getenv("MODEL_NAME", "gpt-5.2")
 HF_TOKEN = os.getenv("HF_TOKEN")
+API_KEY = os.getenv("API_KEY")
 LOCAL_IMAGE_NAME = os.getenv("LOCAL_IMAGE_NAME")
 
 

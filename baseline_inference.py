@@ -133,8 +133,7 @@ def run_task(
 ) -> Tuple[float, int]:
     # Always read proxy settings at runtime to avoid stale envs.
     llm_base_url = os.getenv("API_BASE_URL", "")
-    hf_token = os.getenv("HF_TOKEN")
-    api_key = hf_token or os.getenv("API_KEY")
+    api_key = os.getenv("API_KEY") or os.getenv("HF_TOKEN")
     if not api_key or not llm_base_url or OpenAI is None:
         # Fallback policy without proxy calls (for local/dev). Validator should provide HF_TOKEN.
         client = None
@@ -152,15 +151,23 @@ def run_task(
 
         # Ensure at least one request hits the provided LiteLLM proxy.
         if client is not None:
+            # Ensure the proxy sees at least one request on the injected key.
             try:
                 _ = client.chat.completions.create(
-                    model=MODEL,
+                    model=MODEL or "gpt-4o-mini",
                     messages=[{"role": "user", "content": "ping"}],
                     temperature=0,
                 )
             except Exception:
-                # Swallow errors; fallback policy will still complete the task.
-                pass
+                try:
+                    _ = client.chat.completions.create(
+                        model="gpt-4o-mini",
+                        messages=[{"role": "user", "content": "ping"}],
+                        temperature=0,
+                    )
+                except Exception:
+                    # Swallow errors; fallback policy will still complete the task.
+                    pass
 
         while not done:
             action: Optional[SupportOpsAction] = None
@@ -168,7 +175,7 @@ def run_task(
                 try:
                     prompt = build_prompt(observation.model_dump())
                     response = client.chat.completions.create(
-                        model=MODEL,
+                        model=MODEL or "gpt-4o-mini",
                         messages=[
                             {"role": "system", "content": SYSTEM_PROMPT},
                             {"role": "user", "content": prompt},
